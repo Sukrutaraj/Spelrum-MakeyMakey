@@ -93,6 +93,8 @@ html,body{width:100%;height:100%;overflow:hidden;font-family:'Nunito',sans-serif
 
 #touchControls{
   position:fixed;
+  left:30px;
+  top:30px;
   bottom:85px;
   right:16px;
   z-index:9999;
@@ -133,6 +135,21 @@ html,body{width:100%;height:100%;overflow:hidden;font-family:'Nunito',sans-serif
 .space-btn{
   width:166px;
   font-size:18px;
+}
+
+
+#touchDragHandle{
+  width:100%;
+  text-align:center;
+  padding:10px;
+  border-radius:16px;
+  background:rgba(255,255,255,0.08);
+  color:#86efac;
+  font-family:'Fredoka One',cursive;
+  font-size:14px;
+  letter-spacing:1px;
+  cursor:grab;
+  touch-action:none;
 }
 
 </style>
@@ -329,6 +346,7 @@ buildCats();
 <button id="touchToggle">🎮 Touch</button>
 
 <div id="touchControls">
+  <div id="touchDragHandle">✋ Flytta kontroller</div>
   <div class="touch-row">
     <button class="touch-btn" data-key="ArrowUp">↑</button>
   </div>
@@ -344,9 +362,13 @@ buildCats();
   </div>
 </div>
 
+
+
+
 <script>
 const touchToggle = document.getElementById("touchToggle");
 const touchControls = document.getElementById("touchControls");
+const dragHandle = document.getElementById("touchDragHandle");
 
 touchToggle.addEventListener("click", ()=>{
   touchControls.style.display =
@@ -354,32 +376,82 @@ touchToggle.addEventListener("click", ()=>{
 });
 
 function sendVirtualKey(key){
-  const down = new KeyboardEvent("keydown", {
+  const evt = new KeyboardEvent("keydown", {
     key:key,
     bubbles:true
   });
 
-  document.dispatchEvent(down);
+  document.dispatchEvent(evt);
 
   const iframe = document.getElementById("gameFrame");
   if(iframe && iframe.contentWindow){
-    iframe.contentWindow.document.dispatchEvent(down);
+    iframe.contentWindow.document.dispatchEvent(evt);
   }
 }
 
 document.querySelectorAll(".touch-btn").forEach(btn=>{
   const key = btn.dataset.key;
 
-  btn.addEventListener("touchstart", e=>{
+  function trigger(e){
     e.preventDefault();
     sendVirtualKey(key);
-  });
+  }
 
-  btn.addEventListener("mousedown", e=>{
-    e.preventDefault();
-    sendVirtualKey(key);
-  });
+  btn.addEventListener("touchstart", trigger, {passive:false});
+  btn.addEventListener("mousedown", trigger);
 });
+
+let dragging = false;
+let offsetX = 0;
+let offsetY = 0;
+
+function startDrag(clientX, clientY){
+  dragging = true;
+
+  const rect = touchControls.getBoundingClientRect();
+  offsetX = clientX - rect.left;
+  offsetY = clientY - rect.top;
+
+  dragHandle.style.cursor = "grabbing";
+}
+
+function moveDrag(clientX, clientY){
+  if(!dragging) return;
+
+  touchControls.style.left = (clientX - offsetX) + "px";
+  touchControls.style.top = (clientY - offsetY) + "px";
+  touchControls.style.right = "auto";
+  touchControls.style.bottom = "auto";
+}
+
+function endDrag(){
+  dragging = false;
+  dragHandle.style.cursor = "grab";
+}
+
+dragHandle.addEventListener("mousedown", e=>{
+  e.preventDefault();
+  startDrag(e.clientX, e.clientY);
+});
+
+document.addEventListener("mousemove", e=>{
+  moveDrag(e.clientX, e.clientY);
+});
+
+document.addEventListener("mouseup", endDrag);
+
+dragHandle.addEventListener("touchstart", e=>{
+  const t = e.touches[0];
+  startDrag(t.clientX, t.clientY);
+}, {passive:false});
+
+document.addEventListener("touchmove", e=>{
+  if(!dragging) return;
+  const t = e.touches[0];
+  moveDrag(t.clientX, t.clientY);
+}, {passive:false});
+
+document.addEventListener("touchend", endDrag);
 </script>
 
 </body>
